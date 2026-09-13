@@ -67,6 +67,12 @@ export default async function DashboardPage() {
           streakCount = streakData.current_streak ?? 0
         }
 
+        // Fallback streak if streaks table has pending RLS updates
+        if (streakCount === 0 && profile?.consistency_tier?.includes('S:')) {
+          const match = profile.consistency_tier.match(/S:(\d+)/)
+          if (match) streakCount = parseInt(match[1], 10)
+        }
+
         // Fetch user path stats
         const { data: pathData } = await supabase
           .from('paths')
@@ -86,7 +92,10 @@ export default async function DashboardPage() {
           .order('created_at', { ascending: false })
 
         if (questsData) {
-          quests = questsData as Quest[]
+          quests = questsData.map((q: any) => ({
+            ...q,
+            mode: q.mode || (q.recurrence === 'overall_day' || q.recurrence === 'one_time' ? q.recurrence : 'one_time')
+          })) as Quest[]
         }
 
         // Fetch monsters

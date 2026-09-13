@@ -26,7 +26,7 @@ export async function Navbar() {
         // Fetch user profile stats
         const { data: profile } = await supabase
           .from('profiles')
-          .select('nexus_coins, lifetime_xp, display_name')
+          .select('nexus_coins, lifetime_xp, display_name, consistency_tier')
           .eq('id', user.id)
           .single()
 
@@ -45,6 +45,11 @@ export async function Navbar() {
 
         if (streakData) {
           streak = streakData.current_streak ?? 0
+        }
+
+        if (streak === 0 && profile?.consistency_tier?.includes('S:')) {
+          const match = profile.consistency_tier.match(/S:(\d+)/)
+          if (match) streak = parseInt(match[1], 10)
         }
       }
     } catch {

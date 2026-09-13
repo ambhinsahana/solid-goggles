@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Quest, QuestDifficulty, PathType, Profile } from '@/lib/types'
 import { createQuest, updateQuest, completeQuest, deleteQuest } from '@/app/dashboard/actions'
 import { calculateLevelFromXP } from '@/lib/progression/levels'
@@ -49,10 +50,13 @@ export function QuestManager({
   initialProfile, 
   isSupabaseConnected 
 }: QuestManagerProps) {
+  const router = useRouter()
   const [quests, setQuests] = useState<Quest[]>(initialQuests)
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active')
   const [editingQuest, setEditingQuest] = useState<Quest | null>(null)
   const [isCreating, setIsCreating] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [completingQuestId, setCompletingQuestId] = useState<string | null>(null)
   const [levelUpData, setLevelUpData] = useState<LevelUpEventData | null>(null)
   const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [profile, setProfile] = useState<Profile>(initialProfile || {
@@ -76,170 +80,214 @@ export function QuestManager({
   // CREATE QUEST HANDLER
   const handleCreateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (isSubmitting) return
+
     const form = e.currentTarget
     const formData = new FormData(form)
+    const title = (formData.get('title') as string)?.trim()
 
-    const result = await createQuest(formData)
-
-    if (result.error && result.error !== 'SUPABASE_NOT_CONFIGURED') {
-      showNotification(result.error, 'error')
+    if (!title) {
+      showNotification('Quest title is required', 'error')
       return
     }
 
-    if (result.quest) {
-      setQuests(prev => [result.quest as Quest, ...prev])
-      setIsCreating(false)
-      showNotification('Quest created successfully!')
-      form.reset()
-    } else if (result.error === 'SUPABASE_NOT_CONFIGURED') {
-      // Local fallback create
-      const newQuest: Quest = {
-        id: 'local-' + Date.now(),
-        user_id: profile.id,
-        title: formData.get('title') as string,
-        description: formData.get('description') as string || null,
-        path: (formData.get('path') as PathType) || 'Learning',
-        difficulty: (formData.get('difficulty') as QuestDifficulty) || 'Medium',
-        mode: (formData.get('mode') as 'one_time' | 'overall_day') || 'one_time',
-        planned_time: formData.get('planned_time') ? parseInt(formData.get('planned_time') as string) : null,
-        notes: formData.get('notes') as string || null,
-        status: 'active',
-        created_at: new Date().toISOString()
+    setIsSubmitting(true)
+    try {
+      const result = await createQuest(formData)
+
+      if (result.error && result.error !== 'SUPABASE_NOT_CONFIGURED') {
+        showNotification(result.error, 'error')
+        setIsSubmitting(false)
+        return
       }
-      setQuests(prev => [newQuest, ...prev])
-      setIsCreating(false)
-      showNotification('Quest created successfully (Local Session)!')
+
+      if (result.quest) {
+        setQuests(prev => [result.quest as Quest, ...prev])
+        setIsCreating(false)
+        showNotification('Quest created successfully!')
+        form.reset()
+        router.refresh()
+      } else if (result.error === 'SUPABASE_NOT_CONFIGURED') {
+        // Local fallback create
+        const newQuest: Quest = {
+          id: 'local-' + Date.now(),
+          user_id: profile.id,
+          title,
+          description: (formData.get('description') as string)?.trim() || null,
+          path: (formData.get('path') as PathType) || 'Learning',
+          difficulty: (formData.get('difficulty') as QuestDifficulty) || 'Medium',
+          mode: (formData.get('mode') as 'one_time' | 'overall_day') || 'one_time',
+          planned_time: formData.get('planned_time') ? parseInt(formData.get('planned_time') as string, 10) : null,
+          notes: (formData.get('notes') as string)?.trim() || null,
+          status: 'active',
+          created_at: new Date().toISOString()
+        }
+        setQuests(prev => [newQuest, ...prev])
+        setIsCreating(false)
+        showNotification('Quest created successfully (Local Session)!')
+      }
+    } catch (err) {
+      showNotification(err instanceof Error ? err.message : 'Failed to create quest', 'error')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   // UPDATE / EDIT QUEST HANDLER
   const handleUpdateSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!editingQuest) return
+    if (!editingQuest || isSubmitting) return
 
-    const formData = new FormData(e.currentTarget)
-    formData.set('id', editingQuest.id)
+    setIsSubmitting(true)
+    try {
+      const formData = new FormData(e.currentTarget)
+      formData.set('id', editingQuest.id)
 
-    const result = await updateQuest(formData)
+      const result = await updateQuest(formData)
 
-    if (result.error && result.error !== 'SUPABASE_NOT_CONFIGURED') {
-      showNotification(result.error, 'error')
-      return
-    }
-
-    const updatedTitle = formData.get('title') as string
-    const updatedDesc = formData.get('description') as string || null
-    const updatedPath = formData.get('path') as PathType
-    const updatedDiff = formData.get('difficulty') as QuestDifficulty
-    const updatedMode = (formData.get('mode') as 'one_time' | 'overall_day') || 'one_time'
-    const updatedTime = formData.get('planned_time') ? parseInt(formData.get('planned_time') as string) : null
-    const updatedNotes = formData.get('notes') as string || null
-
-    setQuests(prev => prev.map(q => {
-      if (q.id === editingQuest.id) {
-        return {
-          ...q,
-          title: updatedTitle,
-          description: updatedDesc,
-          path: updatedPath,
-          difficulty: updatedDiff,
-          mode: updatedMode,
-          planned_time: updatedTime,
-          notes: updatedNotes,
-        }
+      if (result.error && result.error !== 'SUPABASE_NOT_CONFIGURED') {
+        showNotification(result.error, 'error')
+        setIsSubmitting(false)
+        return
       }
-      return q
-    }))
 
-    setEditingQuest(null)
-    showNotification('Quest updated successfully!')
+      const updatedTitle = (formData.get('title') as string)?.trim() || editingQuest.title
+      const updatedDesc = (formData.get('description') as string)?.trim() || null
+      const updatedPath = formData.get('path') as PathType
+      const updatedDiff = formData.get('difficulty') as QuestDifficulty
+      const updatedMode = (formData.get('mode') as 'one_time' | 'overall_day') || 'one_time'
+      const updatedTime = formData.get('planned_time') ? parseInt(formData.get('planned_time') as string, 10) : null
+      const updatedNotes = (formData.get('notes') as string)?.trim() || null
+
+      setQuests(prev => prev.map(q => {
+        if (q.id === editingQuest.id) {
+          return {
+            ...q,
+            title: updatedTitle,
+            description: updatedDesc,
+            path: updatedPath,
+            difficulty: updatedDiff,
+            mode: updatedMode,
+            planned_time: updatedTime,
+            notes: updatedNotes,
+          }
+        }
+        return q
+      }))
+
+      setEditingQuest(null)
+      showNotification('Quest updated successfully!')
+      router.refresh()
+    } catch (err) {
+      showNotification(err instanceof Error ? err.message : 'Failed to update quest', 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   // COMPLETE QUEST HANDLER
   const handleComplete = async (quest: Quest) => {
+    if (completingQuestId) return
+    setCompletingQuestId(quest.id)
     const rewards = DIFFICULTY_REWARDS[quest.difficulty] || DIFFICULTY_REWARDS.Medium
     gameAudio.playCoin()
     gameAudio.playFanfare()
 
-    if (isSupabaseConnected) {
-      const result = await completeQuest(quest.id)
-      if (result.error) {
-        showNotification(result.error, 'error')
-        return
-      }
-      if (result.success) {
-        setQuests(prev => prev.map(q => q.id === quest.id ? { ...q, status: 'completed' } : q))
-        setProfile(prev => ({
-          ...prev,
-          lifetime_xp: result.newXP || prev.lifetime_xp + rewards.xp,
-          nexus_level: result.newLevel || prev.nexus_level,
-          nexus_coins: result.newCoins || prev.nexus_coins + rewards.coins,
-          character_evolution_stage: result.evolutionStage || prev.character_evolution_stage,
-        }))
-        showNotification(`Quest Complete! +${result.rewards?.xp || rewards.xp} XP & +${result.rewards?.coins || rewards.coins} Coins!`)
-
-        // Trigger Epic ~70% Viewport Level-Up & Evolution Ceremony
-        if (result.leveledUp || result.evolved) {
-          setLevelUpData({
-            oldLevel: result.oldLevel ?? profile.nexus_level,
-            newLevel: result.newLevel,
-            characterIndex: profile.active_character_index ?? 0,
-            characterName: result.characterName || 'Hero',
-            evolutionStage: result.evolutionStage || profile.character_evolution_stage || 1,
-            stageName: getStageName(result.evolutionStage || profile.character_evolution_stage || 1),
-            evolved: Boolean(result.evolved),
-            xpEarned: result.rewards?.xp || rewards.xp,
-            coinsEarned: result.rewards?.coins || rewards.coins,
-          })
+    try {
+      if (isSupabaseConnected) {
+        const result = await completeQuest(quest.id)
+        if (result.error) {
+          showNotification(result.error, 'error')
+          setCompletingQuestId(null)
+          return
         }
-        return
+        if (result.success) {
+          setQuests(prev => prev.map(q => q.id === quest.id ? { ...q, status: 'completed' } : q))
+          setProfile(prev => ({
+            ...prev,
+            lifetime_xp: result.newXP || prev.lifetime_xp + rewards.xp,
+            nexus_level: result.newLevel || prev.nexus_level,
+            nexus_coins: result.newCoins || prev.nexus_coins + rewards.coins,
+            character_evolution_stage: result.evolutionStage || prev.character_evolution_stage,
+          }))
+          showNotification(`Quest Complete! +${result.rewards?.xp || rewards.xp} XP & +${result.rewards?.coins || rewards.coins} Coins!`)
+          router.refresh()
+
+          // Trigger Epic ~70% Viewport Level-Up & Evolution Ceremony
+          if (result.leveledUp || result.evolved) {
+            setLevelUpData({
+              oldLevel: result.oldLevel ?? profile.nexus_level,
+              newLevel: result.newLevel,
+              characterIndex: profile.active_character_index ?? 0,
+              characterName: result.characterName || 'Hero',
+              evolutionStage: result.evolutionStage || profile.character_evolution_stage || 1,
+              stageName: getStageName(result.evolutionStage || profile.character_evolution_stage || 1),
+              evolved: Boolean(result.evolved),
+              xpEarned: result.rewards?.xp || rewards.xp,
+              coinsEarned: result.rewards?.coins || rewards.coins,
+            })
+          }
+          setCompletingQuestId(null)
+          return
+        }
       }
-    }
 
-    // Local execution fallback
-    const isOneTime = quest.mode !== 'overall_day'
-    const earnedXp = Math.round(rewards.xp * (isOneTime ? 1.0 : 0.8))
-    const newXP = profile.lifetime_xp + earnedXp
-    const newCoins = profile.nexus_coins + rewards.coins
-    const { level: newLevel } = calculateLevelFromXP(newXP)
-    const oldLevel = profile.nexus_level
+      // Local execution fallback
+      const isOneTime = quest.mode !== 'overall_day'
+      const earnedXp = Math.round(rewards.xp * (isOneTime ? 1.0 : 0.8))
+      const newXP = profile.lifetime_xp + earnedXp
+      const newCoins = profile.nexus_coins + rewards.coins
+      const { level: newLevel } = calculateLevelFromXP(newXP)
+      const oldLevel = profile.nexus_level
 
-    setQuests(prev => prev.map(q => q.id === quest.id ? { ...q, status: 'completed' } : q))
-    setProfile(prev => ({
-      ...prev,
-      lifetime_xp: newXP,
-      nexus_level: newLevel,
-      nexus_coins: newCoins,
-    }))
-    showNotification(`Quest Complete! +${earnedXp} XP & +${rewards.coins} Coins!`)
+      setQuests(prev => prev.map(q => q.id === quest.id ? { ...q, status: 'completed' } : q))
+      setProfile(prev => ({
+        ...prev,
+        lifetime_xp: newXP,
+        nexus_level: newLevel,
+        nexus_coins: newCoins,
+      }))
+      showNotification(`Quest Complete! +${earnedXp} XP & +${rewards.coins} Coins!`)
 
-    if (newLevel > oldLevel) {
-      setLevelUpData({
-        oldLevel,
-        newLevel,
-        characterIndex: profile.active_character_index ?? 0,
-        characterName: 'Hero',
-        evolutionStage: profile.character_evolution_stage || 1,
-        stageName: getStageName(profile.character_evolution_stage || 1),
-        evolved: false,
-        xpEarned: earnedXp,
-        coinsEarned: rewards.coins,
-      })
+      if (newLevel > oldLevel) {
+        setLevelUpData({
+          oldLevel,
+          newLevel,
+          characterIndex: profile.active_character_index ?? 0,
+          characterName: 'Hero',
+          evolutionStage: profile.character_evolution_stage || 1,
+          stageName: getStageName(profile.character_evolution_stage || 1),
+          evolved: false,
+          xpEarned: earnedXp,
+          coinsEarned: rewards.coins,
+        })
+      }
+    } finally {
+      setCompletingQuestId(null)
     }
   }
 
   // DELETE QUEST HANDLER
   const handleDelete = async (questId: string) => {
+    if (!window.confirm('Are you sure you want to abandon and delete this quest?')) return
     gameAudio.playTap()
-    if (isSupabaseConnected) {
-      const result = await deleteQuest(questId)
-      if (result.error) {
-        showNotification(result.error, 'error')
-        return
+    setIsSubmitting(true)
+    try {
+      if (isSupabaseConnected) {
+        const result = await deleteQuest(questId)
+        if (result.error) {
+          showNotification(result.error, 'error')
+          return
+        }
       }
+      setQuests(prev => prev.filter(q => q.id !== questId))
+      showNotification('Quest deleted')
+      router.refresh()
+    } catch (err) {
+      showNotification(err instanceof Error ? err.message : 'Failed to delete quest', 'error')
+    } finally {
+      setIsSubmitting(false)
     }
-    setQuests(prev => prev.filter(q => q.id !== questId))
-    showNotification('Quest deleted')
   }
 
   const currentLevelInfo = calculateLevelFromXP(profile.lifetime_xp)
@@ -399,10 +447,11 @@ export function QuestManager({
                       <Button 
                         size="sm" 
                         onClick={() => handleComplete(quest)}
-                        className="btn-clash bg-gradient-to-r from-emerald-600 to-green-700 text-white font-black px-4 py-2 border-2 border-emerald-900 shadow-[2px_2px_0px_#064e3b]"
+                        disabled={completingQuestId === quest.id}
+                        className="btn-clash bg-gradient-to-r from-emerald-600 to-green-700 text-white font-black px-4 py-2 border-2 border-emerald-900 shadow-[2px_2px_0px_#064e3b] disabled:opacity-50"
                       >
                         <CheckCircle2 className="w-4 h-4 mr-1.5 stroke-[3]" />
-                        COMPLETE
+                        {completingQuestId === quest.id ? 'COMPLETING...' : 'COMPLETE'}
                       </Button>
                     </div>
                   </div>
@@ -546,11 +595,11 @@ export function QuestManager({
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
-                <Button type="button" variant="ghost" onClick={() => setIsCreating(false)}>
+                <Button type="button" variant="ghost" onClick={() => setIsCreating(false)} disabled={isSubmitting}>
                   Cancel
                 </Button>
-                <Button type="submit">
-                  FORGE QUEST
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'FORGING...' : 'FORGE QUEST'}
                 </Button>
               </div>
             </form>
@@ -656,11 +705,11 @@ export function QuestManager({
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
-                <Button type="button" variant="ghost" onClick={() => setEditingQuest(null)}>
+                <Button type="button" variant="ghost" onClick={() => setEditingQuest(null)} disabled={isSubmitting}>
                   Cancel
                 </Button>
-                <Button type="submit">
-                  SAVE CHANGES
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'SAVING...' : 'SAVE CHANGES'}
                 </Button>
               </div>
             </form>

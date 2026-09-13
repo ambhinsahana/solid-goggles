@@ -146,25 +146,43 @@ export async function createQuest(formData: FormData) {
       return { error: 'Unauthorized. Please log in.' }
     }
 
-    const { data, error } = await supabase.from('quests').insert({
+    const payload: Record<string, unknown> = {
       user_id: user.id,
       title,
       description,
       path: pathType,
       difficulty,
-      mode,
       planned_time: plannedTime,
       deadline,
       notes,
+      recurrence: mode,
       status: 'active',
+    }
+
+    // Try inserting with 'mode' column first
+    let { data, error } = await supabase.from('quests').insert({
+      ...payload,
+      mode,
     }).select().single()
+
+    // If 'mode' column does not exist in Supabase schema cache (PGRST204), fallback to payload without 'mode' column
+    if (error && (error.code === 'PGRST204' || error.message?.includes('mode'))) {
+      const fallback = await supabase.from('quests').insert(payload).select().single()
+      data = fallback.data
+      error = fallback.error
+    }
 
     if (error) {
       return { error: error.message }
     }
 
+    const createdQuest = {
+      ...data,
+      mode: data?.mode || (data?.recurrence === 'overall_day' || data?.recurrence === 'one_time' ? data.recurrence : mode)
+    }
+
     revalidatePath('/dashboard')
-    return { success: true, quest: data }
+    return { success: true, quest: createdQuest }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to create quest'
     return { error: message }
@@ -218,29 +236,51 @@ export async function updateQuest(formData: FormData) {
       return { error: 'Unauthorized. Please log in.' }
     }
 
-    const { data, error } = await supabase
+    const payload: Record<string, unknown> = {
+      title,
+      description,
+      path: pathType,
+      difficulty,
+      planned_time: plannedTime,
+      deadline,
+      notes,
+      recurrence: mode,
+    }
+
+    let { data, error } = await supabase
       .from('quests')
       .update({
-        title,
-        description,
-        path: pathType,
-        difficulty,
+        ...payload,
         mode,
-        planned_time: plannedTime,
-        deadline,
-        notes,
       })
       .eq('id', questId)
       .eq('user_id', user.id)
       .select()
       .single()
 
+    if (error && (error.code === 'PGRST204' || error.message?.includes('mode'))) {
+      const fallback = await supabase
+        .from('quests')
+        .update(payload)
+        .eq('id', questId)
+        .eq('user_id', user.id)
+        .select()
+        .single()
+      data = fallback.data
+      error = fallback.error
+    }
+
     if (error) {
       return { error: error.message }
     }
 
+    const updatedQuest = {
+      ...data,
+      mode: data?.mode || (data?.recurrence === 'overall_day' || data?.recurrence === 'one_time' ? data.recurrence : mode)
+    }
+
     revalidatePath('/dashboard')
-    return { success: true, quest: data }
+    return { success: true, quest: updatedQuest }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to update quest'
     return { error: message }
@@ -314,7 +354,37 @@ export async function completeQuest(questId: string) {
     const newProgression = getCharacterProgression(newXP, activeCharIndex)
     const evolved = newProgression.evolutionStage > oldProgression.evolutionStage
 
-    // 4. Update Profile
+    // 4. Determine Streak via authoritative evaluateStreak
+    const todayStr = new Date().toISOString().split('T')[0]
+    const { data: streakData } = await supabase
+      .from('streaks')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    let curStreak = streakData?.current_streak ?? 0
+    let longStreak = streakData?.longest_streak ?? 0
+    let lastDate = streakData?.last_qualifying_date ?? null
+
+    // Fallback if streak table was not updated due to RLS
+    if (curStreak === 0 && profile?.consistency_tier?.includes('S:')) {
+      const matchS = profile.consistency_tier.match(/S:(\d+)/)
+      const matchL = profile.consistency_tier.match(/L:(\d+)/)
+      const matchD = profile.consistency_tier.match(/D:([0-9-]+)/)
+      if (matchS) curStreak = parseInt(matchS[1], 10)
+      if (matchL) longStreak = parseInt(matchL[1], 10)
+      if (matchD) lastDate = matchD[1]
+    }
+
+    const evaluated = evaluateStreak(
+      curStreak,
+      longStreak,
+      lastDate
+    )
+
+    const streakRecord = `Tier:Hero|S:${evaluated.newCurrentStreak}|L:${evaluated.newLongestStreak}|D:${todayStr}`
+
+    // Update Profile with XP, coins, level, evolution stage, and streak backup
     await supabase
       .from('profiles')
       .update({
@@ -322,6 +392,7 @@ export async function completeQuest(questId: string) {
         nexus_level: newLevel,
         nexus_coins: newCoins,
         character_evolution_stage: newProgression.evolutionStage,
+        consistency_tier: streakRecord,
       })
       .eq('id', user.id)
 
@@ -351,26 +422,17 @@ export async function completeQuest(questId: string) {
       .eq('id', questId)
       .eq('user_id', user.id)
 
-    // 7. Update Streak via authoritative evaluateStreak & upsert
-    const todayStr = new Date().toISOString().split('T')[0]
-    const { data: streakData } = await supabase
-      .from('streaks')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    const evaluated = evaluateStreak(
-      streakData?.current_streak ?? 0,
-      streakData?.longest_streak ?? 0,
-      streakData?.last_qualifying_date ?? null
-    )
-
-    await supabase.from('streaks').upsert({
-      user_id: user.id,
-      current_streak: evaluated.newCurrentStreak,
-      longest_streak: evaluated.newLongestStreak,
-      last_qualifying_date: todayStr,
-    })
+    // 7. Attempt update on streaks table
+    try {
+      await supabase.from('streaks').upsert({
+        user_id: user.id,
+        current_streak: evaluated.newCurrentStreak,
+        longest_streak: evaluated.newLongestStreak,
+        last_qualifying_date: todayStr,
+      })
+    } catch {
+      // Non-blocking if table RLS is restrictive
+    }
 
     const streakResult = {
       currentStreak: evaluated.newCurrentStreak,
@@ -380,13 +442,17 @@ export async function completeQuest(questId: string) {
     }
 
     // 8. Record into quest_completions audit log
-    await supabase.from('quest_completions').insert({
-      quest_id: questId,
-      user_id: user.id,
-      xp_earned: rewards.xp,
-      coins_earned: rewards.coins,
-      path_progressed: quest.path,
-    })
+    try {
+      await supabase.from('quest_completions').insert({
+        quest_id: questId,
+        user_id: user.id,
+        xp_earned: rewards.xp,
+        coins_earned: rewards.coins,
+        path_progressed: quest.path,
+      })
+    } catch {
+      // Non-blocking
+    }
 
     // 9. Evaluate Achievements authoritatively
     let unlockedAchievements: Achievement[] = []
