@@ -11,15 +11,15 @@ import { WorldScene } from '@/components/game/world-scene'
 
 const STARTER_COMPANIONS = [
   {
-    id: 'spriggo',
-    name: 'Spriggo',
-    title: 'The Sprout of Focus',
-    element: 'Plant / Earth Affinity',
+    id: 'mossling',
+    name: 'Mossling',
+    title: 'The Guardian of Focus',
+    element: 'Nature / Earth Affinity',
     color: 'text-[#5E8B4C]',
     borderColor: 'border-[#5E8B4C]',
     bgGradient: 'bg-[#5E8B4C]/10',
-    image: '/spriggo-8bit.png',
-    passiveName: 'Photosynthesis',
+    image: '/terran-8bit.png',
+    passiveName: 'Forest Growth',
     passiveDesc: 'Grants +5% bonus XP on all morning focus quests and boosts daily energy.',
     cp: 620,
   },
@@ -124,7 +124,7 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1)
   const [adventurerName, setAdventurerName] = useState('')
   const [selectedPath, setSelectedPath] = useState('Learning')
-  const [selectedCompanionId, setSelectedCompanionId] = useState('spriggo')
+  const [selectedCompanionId, setSelectedCompanionId] = useState('ignis')
   const [selectedQuest, setSelectedQuest] = useState(STARTER_QUESTS[0])
   const [customQuestTitle, setCustomQuestTitle] = useState('')
 

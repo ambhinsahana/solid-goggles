@@ -24,7 +24,7 @@ export function calculateQuestRewards(
   hasPassiveBonus: boolean = false
 ): QuestReward {
   const base = BASE_REWARDS[difficulty] || BASE_REWARDS.Medium
-  const multiplier = hasPassiveBonus ? 1.05 : 1.0 // 5% Spriggo passive bonus
+  const multiplier = hasPassiveBonus ? 1.05 : 1.0 // 5% companion passive bonus
 
   return {
     xp: Math.round(base.xp * multiplier),

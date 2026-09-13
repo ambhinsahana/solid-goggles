@@ -261,14 +261,14 @@ export function CompanionCinema({ className = '', showStats = true }: CompanionC
             <div className="relative w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/40 overflow-hidden flex-shrink-0 group-hover:scale-110 transition-transform">
               <Image 
                 src="/spriggo-8bit.png" 
-                alt="8-bit Spriggo" 
+                alt="8-bit Mossling" 
                 fill 
                 className="object-cover pixelated"
                 unoptimized
               />
             </div>
             <div>
-              <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider block">Spriggo • 8-Bit</span>
+              <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider block">Mossling • 8-Bit</span>
               <span className="text-xs font-black text-white">Bloom Lvl 7</span>
             </div>
           </div>

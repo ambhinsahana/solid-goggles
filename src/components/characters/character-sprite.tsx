@@ -56,29 +56,29 @@ export function CharacterSprite({
         return <AqualynxSprite stage={safeStage} size={size} />
       case 2:
         return <MosslingSprite stage={safeStage} size={size} />
-      case 3:
-        return <ZephyrosSprite stage={safeStage} size={size} />
-      case 4:
+      case 3: // Voltimp (Thunder Imp)
         return <SparkbeastSprite stage={safeStage} size={size} />
-      case 5:
-        return <TerranodSprite stage={safeStage} size={size} />
-      case 6:
+      case 4: // Frostowl (Arctic Owl)
         return <FrosthowlSprite stage={safeStage} size={size} />
-      case 7:
-        return <ShadowshadeSprite stage={safeStage} size={size} />
-      case 8:
-        return <PyrosaurSprite stage={safeStage} size={size} />
-      case 9:
+      case 5: // Stonecub (Earth Cub)
+        return <TerranodSprite stage={safeStage} size={size} />
+      case 6: // Bloomhare (Nature Hare)
         return <GladehornSprite stage={safeStage} size={size} />
-      case 10:
+      case 7: // Shadepup (Shadow Pup)
+        return <ShadowshadeSprite stage={safeStage} size={size} />
+      case 8: // Lumibee (Solar Bee)
         return <SolariaSprite stage={safeStage} size={size} />
-      case 11:
-        return <VoidlingSprite stage={safeStage} size={size} />
-      case 12:
-        return <IroncladSprite stage={safeStage} size={size} />
-      case 13:
+      case 9: // Zephling (Air Sprite)
+        return <ZephyrosSprite stage={safeStage} size={size} />
+      case 10: // Magmahorn (Fire Horn)
+        return <PyrosaurSprite stage={safeStage} size={size} />
+      case 11: // Tidewyrm (Water Serpent)
         return <MistweaverSprite stage={safeStage} size={size} />
-      case 14:
+      case 12: // Mindmoth (Cosmic Moth)
+        return <VoidlingSprite stage={safeStage} size={size} />
+      case 13: // Ironimp (Clockwork Imp)
+        return <IroncladSprite stage={safeStage} size={size} />
+      case 14: // Starling (Astral Phoenix)
         return <StarlingSprite stage={safeStage} size={size} />
       default:
         return <EmberfoxSprite stage={safeStage} size={size} />

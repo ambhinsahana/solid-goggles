@@ -113,7 +113,7 @@ export default function AboutPage() {
                   step: '03',
                   title: 'Evolve Companions',
                   icon: Flame,
-                  desc: 'Bond with creatures like Spriggo. Maintain streaks to trigger elemental companion evolutions.',
+                  desc: 'Bond with elemental creatures like Emberfox. Maintain streaks to trigger elemental companion evolutions.',
                 },
                 {
                   step: '04',

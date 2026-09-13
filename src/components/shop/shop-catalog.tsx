@@ -92,7 +92,6 @@ const TYPE_LABELS: Record<string, { label: string; emoji: string }> = {
   consumable: { label: 'Power-Ups', emoji: '⚡' },
   title: { label: 'Titles', emoji: '🏷️' },
   badge: { label: 'Sigils', emoji: '🛡️' },
-  companion_skin: { label: 'Skins', emoji: '✨' },
   theme: { label: 'Themes', emoji: '🎨' },
 }
 

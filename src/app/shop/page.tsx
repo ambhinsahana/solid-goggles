@@ -7,7 +7,7 @@ import { WorldScene } from '@/components/game/world-scene'
 
 export const metadata = {
   title: 'Armory & Bazaar — LifeQuest',
-  description: 'Spend hard-earned quest Gold on prestige titles, elemental companion skins, warrior sigils, and interface themes.',
+  description: 'Spend hard-earned quest Gold on consumable power-ups, potions, prestige titles, and warrior sigils.',
 }
 
 export default async function ShopPage() {
@@ -17,7 +17,7 @@ export default async function ShopPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.length > 15
   )
 
-  let items: ShopItem[] = SYSTEM_SHOP_ITEMS
+  let items: ShopItem[] = SYSTEM_SHOP_ITEMS.filter(i => i.type !== 'companion_skin')
   let userGold = 0 // Real data only: 0 initial gold
   let ownedItemIds: string[] = [] // Real data only: 0 owned items until purchased
   let isLoggedIn = false
@@ -58,7 +58,7 @@ export default async function ShopPage() {
           .eq('is_active', true)
 
         if (dbItems && dbItems.length > 0) {
-          items = dbItems as ShopItem[]
+          items = (dbItems as ShopItem[]).filter(i => i.type !== 'companion_skin')
         }
       }
     } catch {

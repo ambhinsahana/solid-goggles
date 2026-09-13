@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
 import { calculateQuestRewards, QuestDifficulty, QuestPath } from '@/lib/progression/rewards'
 import { calculateLevelFromXP } from '@/lib/progression/levels'
+import { evaluateStreak } from '@/lib/progression/streaks'
+import { getCharacterProgression } from '@/lib/characters/character-progression'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -44,6 +46,8 @@ export async function createQuest(formData: FormData) {
   const description = (formData.get('description') as string)?.trim() || null
   const pathType = (formData.get('path') as QuestPath) || 'Learning'
   const difficulty = (formData.get('difficulty') as QuestDifficulty) || 'Medium'
+  const rawMode = (formData.get('mode') as string)?.trim()
+  const mode = rawMode === 'overall_day' ? 'overall_day' : 'one_time'
   const plannedTimeStr = formData.get('planned_time') as string
   const plannedTime = plannedTimeStr ? parseInt(plannedTimeStr, 10) : null
   const deadline = (formData.get('deadline') as string)?.trim() || null
@@ -63,6 +67,7 @@ export async function createQuest(formData: FormData) {
         description,
         path: pathType,
         difficulty,
+        mode,
         planned_time: plannedTime,
         deadline,
         notes,
@@ -85,6 +90,7 @@ export async function createQuest(formData: FormData) {
       description,
       path: pathType,
       difficulty,
+      mode,
       planned_time: plannedTime,
       deadline,
       notes,
@@ -112,6 +118,8 @@ export async function updateQuest(formData: FormData) {
   const description = (formData.get('description') as string)?.trim() || null
   const pathType = (formData.get('path') as QuestPath) || 'Learning'
   const difficulty = (formData.get('difficulty') as QuestDifficulty) || 'Medium'
+  const rawMode = (formData.get('mode') as string)?.trim()
+  const mode = rawMode === 'overall_day' ? 'overall_day' : 'one_time'
   const plannedTimeStr = formData.get('planned_time') as string
   const plannedTime = plannedTimeStr ? parseInt(plannedTimeStr, 10) : null
   const deadline = (formData.get('deadline') as string)?.trim() || null
@@ -133,6 +141,7 @@ export async function updateQuest(formData: FormData) {
         description,
         path: pathType,
         difficulty,
+        mode,
         planned_time: plannedTime,
         deadline,
         notes,
@@ -154,6 +163,7 @@ export async function updateQuest(formData: FormData) {
         description,
         path: pathType,
         difficulty,
+        mode,
         planned_time: plannedTime,
         deadline,
         notes,
@@ -210,8 +220,18 @@ export async function completeQuest(questId: string) {
       return { error: 'Quest is already completed' }
     }
 
-    // 2. Calculate server-verified rewards
-    const rewards = calculateQuestRewards(quest.difficulty as QuestDifficulty, true)
+    // 2. Calculate server-verified rewards with execution mode multiplier
+    // ONE TIME = 100% full XP (1.0x); OVERALL DAY = flexible schedule 80% XP (0.8x)
+    const isOneTime = (quest.mode || quest.execution_mode) !== 'overall_day'
+    const baseRewards = calculateQuestRewards(quest.difficulty as QuestDifficulty, true)
+    const multiplier = isOneTime ? 1.0 : 0.8
+    const finalXp = Math.round(baseRewards.xp * multiplier)
+    const rewards = {
+      ...baseRewards,
+      xp: finalXp,
+      isOneTime,
+      multiplier,
+    }
 
     // 3. Fetch profile
     const { data: profile } = await supabase
@@ -220,11 +240,17 @@ export async function completeQuest(questId: string) {
       .eq('id', user.id)
       .single()
 
+    const oldLevel = profile?.nexus_level || 1
     const currentXP = profile?.lifetime_xp || 0
     const currentCoins = profile?.nexus_coins || 0
     const newXP = currentXP + rewards.xp
     const newCoins = currentCoins + rewards.coins
     const { level: newLevel } = calculateLevelFromXP(newXP)
+
+    const activeCharIndex = profile?.active_character_index ?? 0
+    const oldProgression = getCharacterProgression(currentXP, activeCharIndex)
+    const newProgression = getCharacterProgression(newXP, activeCharIndex)
+    const evolved = newProgression.evolutionStage > oldProgression.evolutionStage
 
     // 4. Update Profile
     await supabase
@@ -233,6 +259,7 @@ export async function completeQuest(questId: string) {
         lifetime_xp: newXP,
         nexus_level: newLevel,
         nexus_coins: newCoins,
+        character_evolution_stage: newProgression.evolutionStage,
       })
       .eq('id', user.id)
 
@@ -262,40 +289,32 @@ export async function completeQuest(questId: string) {
       .eq('id', questId)
       .eq('user_id', user.id)
 
-    // 7. Update Streak
-    let streakResult = null
+    // 7. Update Streak via authoritative evaluateStreak & upsert
+    const todayStr = new Date().toISOString().split('T')[0]
     const { data: streakData } = await supabase
       .from('streaks')
       .select('*')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
-    if (streakData) {
-      const todayStr = new Date().toISOString().split('T')[0]
-      const lastDate = streakData.last_qualifying_date
-      let newCurrent = streakData.current_streak || 0
-      let newLongest = streakData.longest_streak || 0
+    const evaluated = evaluateStreak(
+      streakData?.current_streak ?? 0,
+      streakData?.longest_streak ?? 0,
+      streakData?.last_qualifying_date ?? null
+    )
 
-      if (!lastDate) {
-        newCurrent = 1
-        newLongest = Math.max(newLongest, 1)
-      } else {
-        const diffDays = Math.round((new Date(todayStr).getTime() - new Date(lastDate).getTime()) / (1000 * 60 * 60 * 24))
-        if (diffDays === 1) {
-          newCurrent += 1
-          newLongest = Math.max(newLongest, newCurrent)
-        } else if (diffDays > 1) {
-          newCurrent = 1
-        }
-      }
+    await supabase.from('streaks').upsert({
+      user_id: user.id,
+      current_streak: evaluated.newCurrentStreak,
+      longest_streak: evaluated.newLongestStreak,
+      last_qualifying_date: todayStr,
+    })
 
-      await supabase.from('streaks').update({
-        current_streak: newCurrent,
-        longest_streak: newLongest,
-        last_qualifying_date: todayStr,
-      }).eq('user_id', user.id)
-
-      streakResult = { currentStreak: newCurrent, longestStreak: newLongest }
+    const streakResult = {
+      currentStreak: evaluated.newCurrentStreak,
+      longestStreak: evaluated.newLongestStreak,
+      isConsecutive: evaluated.isConsecutive,
+      isSameDay: evaluated.isSameDay,
     }
 
     // 8. Record into quest_completions audit log
@@ -311,11 +330,15 @@ export async function completeQuest(questId: string) {
     return {
       success: true,
       rewards,
+      oldLevel,
       newLevel,
       newXP,
       newCoins,
       streak: streakResult,
-      leveledUp: newLevel > (profile?.nexus_level || 1),
+      leveledUp: newLevel > oldLevel,
+      evolved,
+      evolutionStage: newProgression.evolutionStage,
+      characterName: newProgression.character.name,
     }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Quest completion failed'

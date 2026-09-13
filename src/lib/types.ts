@@ -44,7 +44,7 @@ export interface Creature {
   current_level?: number
 }
 
-export type QuestMode = 'daily' | 'weekly' | 'epic' | 'one-off'
+export type QuestMode = 'one_time' | 'overall_day' | 'daily' | 'weekly' | 'epic' | 'one-off'
 
 export interface Quest {
   id: string

@@ -7,6 +7,8 @@ import { calculateLevelFromXP } from '@/lib/progression/levels'
 import { Button } from '@/components/ui/button'
 import { MorphSlider } from '@/components/ui/morph-slider'
 import { gameAudio } from '@/lib/audio/game-audio'
+import { LevelUpCeremony, LevelUpEventData } from '@/components/game/level-up-ceremony'
+import { getStageName } from '@/lib/characters/character-registry'
 import { 
   Plus, Edit3, Trash2, CheckCircle2, Sword, Clock, 
   Sparkles, X, AlertCircle, Coins, Flame
@@ -27,11 +29,13 @@ const DIFFICULTY_REWARDS: Record<QuestDifficulty, { xp: number; coins: number; c
   Epic: { xp: 400, coins: 120, color: 'text-orange-800 border-orange-400 bg-orange-100' },
 }
 
-const MODE_BADGES: Record<string, string> = {
-  'daily': 'bg-blue-100 text-blue-800 border-blue-300',
-  'weekly': 'bg-indigo-100 text-indigo-800 border-indigo-300',
-  'epic': 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300',
-  'one-off': 'bg-gray-200 text-gray-800 border-gray-400'
+const MODE_BADGES: Record<string, { label: string; style: string }> = {
+  'one_time': { label: '⚡ One Time', style: 'bg-amber-100 text-amber-900 border-amber-300' },
+  'overall_day': { label: '⏳ Overall Day', style: 'bg-sky-100 text-sky-900 border-sky-300' },
+  'daily': { label: '⚡ One Time', style: 'bg-amber-100 text-amber-900 border-amber-300' },
+  'weekly': { label: '⏳ Overall Day', style: 'bg-sky-100 text-sky-900 border-sky-300' },
+  'epic': { label: '⚡ One Time', style: 'bg-amber-100 text-amber-900 border-amber-300' },
+  'one-off': { label: '⚡ One Time', style: 'bg-amber-100 text-amber-900 border-amber-300' },
 }
 
 interface QuestManagerProps {
@@ -49,6 +53,7 @@ export function QuestManager({
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active')
   const [editingQuest, setEditingQuest] = useState<Quest | null>(null)
   const [isCreating, setIsCreating] = useState(false)
+  const [levelUpData, setLevelUpData] = useState<LevelUpEventData | null>(null)
   const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
   const [profile, setProfile] = useState<Profile>(initialProfile || {
     id: 'local-user',
@@ -95,7 +100,7 @@ export function QuestManager({
         description: formData.get('description') as string || null,
         path: (formData.get('path') as PathType) || 'Learning',
         difficulty: (formData.get('difficulty') as QuestDifficulty) || 'Medium',
-        mode: (formData.get('mode') as 'daily' | 'weekly' | 'epic' | 'one-off') || 'one-off',
+        mode: (formData.get('mode') as 'one_time' | 'overall_day') || 'one_time',
         planned_time: formData.get('planned_time') ? parseInt(formData.get('planned_time') as string) : null,
         notes: formData.get('notes') as string || null,
         status: 'active',
@@ -126,7 +131,7 @@ export function QuestManager({
     const updatedDesc = formData.get('description') as string || null
     const updatedPath = formData.get('path') as PathType
     const updatedDiff = formData.get('difficulty') as QuestDifficulty
-    const updatedMode = (formData.get('mode') as 'daily' | 'weekly' | 'epic' | 'one-off') || 'one-off'
+    const updatedMode = (formData.get('mode') as 'one_time' | 'overall_day') || 'one_time'
     const updatedTime = formData.get('planned_time') ? parseInt(formData.get('planned_time') as string) : null
     const updatedNotes = formData.get('notes') as string || null
 
@@ -169,16 +174,35 @@ export function QuestManager({
           lifetime_xp: result.newXP || prev.lifetime_xp + rewards.xp,
           nexus_level: result.newLevel || prev.nexus_level,
           nexus_coins: result.newCoins || prev.nexus_coins + rewards.coins,
+          character_evolution_stage: result.evolutionStage || prev.character_evolution_stage,
         }))
-        showNotification(`Quest Complete! +${rewards.xp} XP & +${rewards.coins} Coins!`)
+        showNotification(`Quest Complete! +${result.rewards?.xp || rewards.xp} XP & +${result.rewards?.coins || rewards.coins} Coins!`)
+
+        // Trigger Epic ~70% Viewport Level-Up & Evolution Ceremony
+        if (result.leveledUp || result.evolved) {
+          setLevelUpData({
+            oldLevel: result.oldLevel ?? profile.nexus_level,
+            newLevel: result.newLevel,
+            characterIndex: profile.active_character_index ?? 0,
+            characterName: result.characterName || 'Hero',
+            evolutionStage: result.evolutionStage || profile.character_evolution_stage || 1,
+            stageName: getStageName(result.evolutionStage || profile.character_evolution_stage || 1),
+            evolved: Boolean(result.evolved),
+            xpEarned: result.rewards?.xp || rewards.xp,
+            coinsEarned: result.rewards?.coins || rewards.coins,
+          })
+        }
         return
       }
     }
 
     // Local execution fallback
-    const newXP = profile.lifetime_xp + rewards.xp
+    const isOneTime = quest.mode !== 'overall_day'
+    const earnedXp = Math.round(rewards.xp * (isOneTime ? 1.0 : 0.8))
+    const newXP = profile.lifetime_xp + earnedXp
     const newCoins = profile.nexus_coins + rewards.coins
     const { level: newLevel } = calculateLevelFromXP(newXP)
+    const oldLevel = profile.nexus_level
 
     setQuests(prev => prev.map(q => q.id === quest.id ? { ...q, status: 'completed' } : q))
     setProfile(prev => ({
@@ -187,7 +211,21 @@ export function QuestManager({
       nexus_level: newLevel,
       nexus_coins: newCoins,
     }))
-    showNotification(`Quest Complete! +${rewards.xp} XP & +${rewards.coins} Coins!`)
+    showNotification(`Quest Complete! +${earnedXp} XP & +${rewards.coins} Coins!`)
+
+    if (newLevel > oldLevel) {
+      setLevelUpData({
+        oldLevel,
+        newLevel,
+        characterIndex: profile.active_character_index ?? 0,
+        characterName: 'Hero',
+        evolutionStage: profile.character_evolution_stage || 1,
+        stageName: getStageName(profile.character_evolution_stage || 1),
+        evolved: false,
+        xpEarned: earnedXp,
+        coinsEarned: rewards.coins,
+      })
+    }
   }
 
   // DELETE QUEST HANDLER
@@ -299,8 +337,8 @@ export function QuestManager({
                             {quest.difficulty}
                           </span>
                           {quest.mode && (
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${MODE_BADGES[quest.mode] || MODE_BADGES['one-off']}`}>
-                              {quest.mode}
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${MODE_BADGES[quest.mode]?.style || 'bg-amber-100 text-amber-900 border-amber-300'}`}>
+                              {MODE_BADGES[quest.mode]?.label || '⚡ ONE TIME'}
                             </span>
                           )}
                         </div>
@@ -450,16 +488,14 @@ export function QuestManager({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-nexus-neon uppercase">Quest Mode</label>
+                  <label className="text-xs font-bold text-nexus-neon uppercase">Execution Mode</label>
                   <select
                     name="mode"
-                    defaultValue="one-off"
+                    defaultValue="one_time"
                     className="w-full px-3 py-2 bg-black/80 border border-white/15 rounded-md focus:border-nexus-neon focus:outline-none text-white text-sm"
                   >
-                    <option value="daily">Daily Continuous (Resets daily)</option>
-                    <option value="weekly">Weekly Flexible (Complete anytime in week)</option>
-                    <option value="epic">One-Time Epic (Huge milestone)</option>
-                    <option value="one-off">Standard Task (One-off)</option>
+                    <option value="one_time">⚡ ONE TIME (Continuous Sitting • 100% Full XP)</option>
+                    <option value="overall_day">⏳ OVERALL DAY (Flexible Sessions • 80% XP)</option>
                   </select>
                 </div>
 
@@ -571,16 +607,14 @@ export function QuestManager({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-nexus-neon uppercase">Quest Mode</label>
+                  <label className="text-xs font-bold text-nexus-neon uppercase">Execution Mode</label>
                   <select
                     name="mode"
-                    defaultValue={editingQuest.mode || 'one-off'}
+                    defaultValue={editingQuest.mode === 'overall_day' ? 'overall_day' : 'one_time'}
                     className="w-full px-3 py-2 bg-black/80 border border-white/15 rounded-md focus:border-nexus-neon focus:outline-none text-white text-sm"
                   >
-                    <option value="daily">Daily Continuous (Resets daily)</option>
-                    <option value="weekly">Weekly Flexible (Complete anytime in week)</option>
-                    <option value="epic">One-Time Epic (Huge milestone)</option>
-                    <option value="one-off">Standard Task (One-off)</option>
+                    <option value="one_time">⚡ ONE TIME (Continuous Sitting • 100% Full XP)</option>
+                    <option value="overall_day">⏳ OVERALL DAY (Flexible Sessions • 80% XP)</option>
                   </select>
                 </div>
 
@@ -633,6 +667,12 @@ export function QuestManager({
           </div>
         </div>
       )}
+
+      {/* ═══════════ EPIC ~70% VIEWPORT LEVEL-UP & EVOLUTION CEREMONY ═══════════ */}
+      <LevelUpCeremony 
+        eventData={levelUpData} 
+        onDismiss={() => setLevelUpData(null)} 
+      />
     </div>
   )
 }

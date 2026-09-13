@@ -52,6 +52,7 @@ export function CompanionPanel({ creature }: CompanionPanelProps) {
       case 'water':
         return 'text-blue-600 bg-blue-50 border-blue-300'
       case 'terran':
+      case 'mossling':
       case 'spriggo':
       case 'earth':
       case 'nature':
@@ -60,8 +61,10 @@ export function CompanionPanel({ creature }: CompanionPanelProps) {
       case 'shadow':
         return 'text-purple-600 bg-purple-50 border-purple-300'
       case 'leviathan':
+      case 'water':
         return 'text-cyan-700 bg-cyan-50 border-cyan-300'
       case 'phantom':
+      case 'cosmic':
         return 'text-indigo-600 bg-indigo-50 border-indigo-300'
       default:
         return 'text-amber-700 bg-amber-50 border-amber-300'
@@ -89,7 +92,7 @@ export function CompanionPanel({ creature }: CompanionPanelProps) {
           height={80}
           className="relative z-10 drop-shadow-md hover:scale-110 transition-transform duration-300"
           onError={(e) => {
-            e.currentTarget.src = '/spriggo-8bit.png'
+            e.currentTarget.src = '/ignis-8bit.png'
           }}
         />
       </div>
