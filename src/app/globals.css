@@ -1,0 +1,563 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-outfit);
+
+  --color-nexus-bg: #f5efe6;
+  --color-nexus-panel: rgba(255, 250, 240, 0.85);
+  --color-nexus-border: rgba(212, 168, 83, 0.4);
+  --color-nexus-neon: #d4a853;
+  --color-nexus-neon-dim: rgba(212, 168, 83, 0.2);
+
+  --color-world-sky: #e8f4f8;
+  --color-world-ground: #f5efe6;
+  --color-world-accent: #d4a853;
+  --color-world-panel: rgba(255, 250, 240, 0.85);
+  --color-world-text: #3d2c1e;
+
+  --color-path-learning: #00b4d8;
+  --color-path-fitness: #e63946;
+  --color-path-creativity: #9d4edd;
+  --color-path-discipline: #f4a261;
+  --color-path-social: #2a9d8f;
+
+  --color-xp: #4cc9f0;
+  --color-coin: #ffd166;
+
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+}
+
+@layer base {
+  :root {
+    --background: 36 33% 97%;
+    --foreground: 28 34% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 28 34% 18%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 28 34% 18%;
+    --primary: 38 60% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 30% 90%;
+    --secondary-foreground: 28 34% 18%;
+    --muted: 40 30% 90%;
+    --muted-foreground: 25 10% 45%;
+    --accent: 38 60% 58%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 30% 85%;
+    --input: 40 30% 85%;
+    --ring: 38 60% 58%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-world-ground text-world-text antialiased;
+    background-image: linear-gradient(to bottom, var(--color-world-sky), var(--color-world-ground) 40%);
+    background-attachment: fixed;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-world-panel backdrop-blur-sm border border-nexus-border rounded-xl shadow-md text-world-text;
+  }
+
+  /* ═══════════ LIQUID GLASSMORPHISM DESIGN SYSTEM ═══════════ */
+  .liquid-glass {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.76) 0%, rgba(255, 250, 240, 0.48) 100%);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.88);
+    box-shadow: 0 16px 36px -6px rgba(160, 120, 60, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.95), inset 0 -1px 1px rgba(0, 0, 0, 0.03);
+  }
+
+  .liquid-glass-soft {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.60) 0%, rgba(255, 250, 240, 0.35) 100%);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.78);
+    box-shadow: 0 8px 24px -4px rgba(160, 120, 60, 0.08), inset 0 1px 1.5px rgba(255, 255, 255, 0.90);
+  }
+
+  .liquid-glass-hud {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 252, 246, 0.68) 100%);
+    backdrop-filter: blur(20px) saturate(170%);
+    -webkit-backdrop-filter: blur(20px) saturate(170%);
+    border: 1.5px solid rgba(255, 255, 255, 0.96);
+    box-shadow: 0 20px 42px -6px rgba(160, 120, 60, 0.15), inset 0 1px 2px rgba(255, 255, 255, 1);
+  }
+
+  .liquid-glass-pill {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 250, 240, 0.70) 100%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.92);
+    box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.95), 0 4px 14px rgba(100, 70, 30, 0.07);
+  }
+
+  .liquid-glass-dark {
+    background: linear-gradient(135deg, rgba(42, 28, 18, 0.88) 0%, rgba(24, 16, 10, 0.94) 100%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(212, 168, 83, 0.45);
+    box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.2), 0 16px 36px rgba(0, 0, 0, 0.35);
+  }
+
+  /* Hacktropica Frosted Glassmorphism */
+  .glass-frosted {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 250, 240, 0.52) 100%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 12px 36px -4px rgba(180, 140, 75, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.95);
+  }
+
+  .glass-frosted-subtle {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 250, 240, 0.35) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 8px 24px -4px rgba(180, 140, 75, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.85);
+  }
+
+  .glass-frosted-dark {
+    background: linear-gradient(135deg, rgba(42, 28, 18, 0.90) 0%, rgba(26, 17, 10, 0.95) 100%);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(212, 168, 83, 0.45);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 12px 32px rgba(0, 0, 0, 0.35);
+  }
+
+  .glass-pill {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 250, 240, 0.65) 100%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 4px 12px rgba(100, 70, 30, 0.06);
+  }
+
+  .glass-pill-dark {
+    background: linear-gradient(135deg, rgba(45, 30, 20, 0.85) 0%, rgba(25, 18, 12, 0.9) 100%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(212, 168, 83, 0.4);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Hacktropica Spring Touch Interactions */
+  .touch-bounce {
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease, filter 0.15s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .touch-bounce:hover {
+    transform: scale(1.02) translateY(-1px);
+  }
+  .touch-bounce:active {
+    transform: scale(0.95) translateY(2px);
+  }
+
+  .touch-press {
+    transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .touch-press:active {
+    transform: scale(0.92);
+  }
+
+  /* Shimmer Sheen Reflection */
+  .glass-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .glass-shimmer::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      60deg,
+      transparent 35%,
+      rgba(255, 255, 255, 0.3) 50%,
+      transparent 65%
+    );
+    transform: rotate(25deg) translateY(-100%);
+    transition: transform 0.7s ease;
+    pointer-events: none;
+  }
+  .glass-shimmer:hover::after {
+    transform: rotate(25deg) translateY(100%);
+  }
+  
+  .parchment-card {
+    @apply bg-world-panel border-2 border-nexus-border rounded-xl shadow-md relative overflow-hidden;
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+  }
+  
+  .world-panel {
+    @apply bg-world-panel backdrop-blur-md rounded-2xl border-4 border-[#e6d5b8] shadow-lg;
+  }
+
+  .rpg-hud {
+    @apply bg-[rgba(61,44,30,0.85)] border-2 border-world-accent rounded-lg text-[#f5efe6] shadow-inner backdrop-blur-sm;
+  }
+
+  /* Clash of Clans 3D Beveled Buttons */
+  .btn-clash {
+    box-shadow: 0 4px 0 #1e293b, 0 8px 20px rgba(0, 0, 0, 0.4);
+    transition: all 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .btn-clash:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 #1e293b, 0 12px 24px rgba(0, 0, 0, 0.5);
+  }
+  .btn-clash:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 #1e293b, 0 4px 10px rgba(0, 0, 0, 0.3);
+  }
+
+  .btn-clash-gold {
+    box-shadow: 0 5px 0 #b45309, 0 10px 25px rgba(245, 158, 11, 0.35);
+    transition: all 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .btn-clash-gold:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 7px 0 #b45309, 0 14px 28px rgba(245, 158, 11, 0.45);
+  }
+  .btn-clash-gold:active {
+    transform: translateY(3px);
+    box-shadow: 0 2px 0 #b45309, 0 4px 12px rgba(245, 158, 11, 0.25);
+  }
+
+  .btn-clash-green {
+    box-shadow: 0 5px 0 #15803d, 0 10px 25px rgba(34, 197, 94, 0.35);
+    transition: all 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .btn-clash-green:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 7px 0 #15803d, 0 14px 28px rgba(34, 197, 94, 0.45);
+  }
+  .btn-clash-green:active {
+    transform: translateY(3px);
+    box-shadow: 0 2px 0 #15803d, 0 4px 12px rgba(34, 197, 94, 0.25);
+  }
+
+  .btn-clash-rose {
+    box-shadow: 0 5px 0 #be123c, 0 10px 25px rgba(244, 63, 94, 0.35);
+    transition: all 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .btn-clash-rose:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 7px 0 #be123c, 0 14px 28px rgba(244, 63, 94, 0.45);
+  }
+  .btn-clash-rose:active {
+    transform: translateY(3px);
+    box-shadow: 0 2px 0 #be123c, 0 4px 12px rgba(244, 63, 94, 0.25);
+  }
+
+  /* Victory Sunburst Radiance */
+  @keyframes sunburst-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .animate-sunburst {
+    animation: sunburst-spin 25s linear infinite;
+  }
+
+  /* Cloud Drift */
+  @keyframes cloud-drift {
+    from { transform: translateX(-10%); }
+    to { transform: translateX(110%); }
+  }
+  .animate-cloud-drift {
+    animation: cloud-drift 60s linear infinite;
+  }
+
+  /* Float / Breathe */
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  .animate-float {
+    animation: float 4s ease-in-out infinite;
+  }
+
+  /* Particle Glow */
+  @keyframes particle-glow {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.2); }
+  }
+  .animate-particle-glow {
+    animation: particle-glow 3s ease-in-out infinite;
+  }
+
+  /* Bobbing */
+  @keyframes bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+  .animate-bob {
+    animation: bob 2s ease-in-out infinite;
+  }
+
+  /* ═══════════ REFERENCE VIDEO CHARACTER ANIMATION SYSTEM ═══════════ */
+  /* WhatsApp Video 2026-09-13 Motion Behavior Reproduction */
+
+  /* 1. Base Idle: Rhythmic natural breathing with subtle vertical translate & squash-and-stretch */
+  @keyframes ref-idle-breathe {
+    0%, 100% {
+      transform: translateY(0px) scale(1, 1);
+    }
+    30% {
+      transform: translateY(-4px) scale(0.99, 1.02);
+    }
+    50% {
+      transform: translateY(-6px) scale(1.01, 1.03);
+    }
+    75% {
+      transform: translateY(-1px) scale(1.02, 0.98);
+    }
+  }
+  .animate-ref-idle {
+    animation: ref-idle-breathe 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    transform-origin: bottom center;
+  }
+
+  /* 2. Wave: Friendly lean with gentle paw wag and happy tilt (Frame 00:02) */
+  @keyframes ref-wave {
+    0%, 100% { transform: translateY(0px) rotate(0deg) scale(1, 1); }
+    15% { transform: translateY(-5px) rotate(-6deg) scale(1.03, 1.02); }
+    35% { transform: translateY(-5px) rotate(6deg) scale(1.03, 1.02); }
+    55% { transform: translateY(-4px) rotate(-5deg) scale(1.02, 1.01); }
+    75% { transform: translateY(-2px) rotate(4deg) scale(1.01, 1); }
+    90% { transform: translateY(0px) rotate(0deg) scale(1, 1); }
+  }
+  .animate-ref-wave {
+    animation: ref-wave 2.1s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform-origin: bottom center;
+  }
+
+  /* 3. Turn & Spin: 360-degree rotation with vertical hop (Frame 00:03) */
+  @keyframes ref-spin {
+    0% { transform: translateY(0px) rotateY(0deg) scale(1, 1); }
+    20% { transform: translateY(-8px) scale(1.04, 0.96); }
+    50% { transform: translateY(-18px) rotateY(180deg) scale(0.96, 1.06); }
+    80% { transform: translateY(-6px) rotateY(360deg) scale(1.04, 0.96); }
+    100% { transform: translateY(0px) rotateY(360deg) scale(1, 1); }
+  }
+  .animate-ref-spin {
+    animation: ref-spin 1.9s cubic-bezier(0.25, 1, 0.5, 1);
+    transform-origin: bottom center;
+  }
+
+  /* 4. Joyful Aerial Bound / Leap (Frame 00:05) */
+  @keyframes ref-leap {
+    0%, 100% { transform: translateY(0px) scale(1, 1); }
+    15% { transform: translateY(6px) scale(1.10, 0.90); }
+    45% { transform: translateY(-28px) scale(0.92, 1.12); }
+    70% { transform: translateY(-8px) scale(1.03, 0.98); }
+    85% { transform: translateY(3px) scale(1.05, 0.95); }
+  }
+  .animate-ref-leap {
+    animation: ref-leap 1.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform-origin: bottom center;
+  }
+
+  /* 5. Prance / Step: Rhythmic side-to-side weight shift (Frame 00:06) */
+  @keyframes ref-prance {
+    0%, 100% { transform: translateY(0px) translateX(0px) rotate(0deg); }
+    25% { transform: translateY(-8px) translateX(-6px) rotate(-4deg); }
+    50% { transform: translateY(0px) translateX(0px) rotate(0deg); }
+    75% { transform: translateY(-8px) translateX(6px) rotate(4deg); }
+  }
+  .animate-ref-prance {
+    animation: ref-prance 1.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform-origin: bottom center;
+  }
+
+  /* 6. Sit & Rest: Calm descent onto pedestal with peaceful breathing (Frames 00:08 - 00:09) */
+  @keyframes ref-sit {
+    0% { transform: translateY(0px) scale(1, 1); }
+    25% { transform: translateY(8px) scale(1.08, 0.92); }
+    60% { transform: translateY(9px) scale(1.06, 0.94); }
+    85% { transform: translateY(4px) scale(1.02, 0.98); }
+    100% { transform: translateY(0px) scale(1, 1); }
+  }
+  .animate-ref-sit {
+    animation: ref-sit 2.5s ease-in-out;
+    transform-origin: bottom center;
+  }
+
+  /* 7. Quest / Level Celebration Event Override (Rule 24) */
+  @keyframes ref-celebrate {
+    0%, 100% { transform: translateY(0px) scale(1, 1); filter: brightness(1); }
+    20% { transform: translateY(-24px) scale(1.15, 1.15) rotate(-6deg); filter: brightness(1.3) drop-shadow(0 0 16px rgba(251, 191, 36, 0.8)); }
+    50% { transform: translateY(-30px) scale(1.2, 1.2) rotate(6deg); filter: brightness(1.4) drop-shadow(0 0 20px rgba(251, 191, 36, 1)); }
+    75% { transform: translateY(-10px) scale(1.08, 1.08) rotate(-3deg); filter: brightness(1.2); }
+  }
+  .animate-ref-celebrate {
+    animation: ref-celebrate 2.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform-origin: bottom center;
+  }
+
+  /* Idle Breathe */
+  @keyframes idle-breathe {
+    0%, 100% { transform: translateY(0) scale(1, 1); }
+    50% { transform: translateY(-4px) scale(1.02, 1.01); }
+  }
+  .animate-idle-breathe {
+    animation: idle-breathe 3.5s ease-in-out infinite;
+  }
+
+  /* Character Idle Actions */
+  @keyframes action-wave {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    20% { transform: rotate(-9deg) scale(1.04) translateY(-3px); }
+    40% { transform: rotate(9deg) scale(1.04) translateY(-3px); }
+    60% { transform: rotate(-6deg) scale(1.02) translateY(-2px); }
+    80% { transform: rotate(4deg) scale(1.01); }
+  }
+  .animate-action-wave {
+    animation: action-wave 1.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes action-punch {
+    0%, 100% { transform: translateX(0) scale(1); }
+    20% { transform: translateX(-8px) scale(0.95); }
+    40% { transform: translateX(16px) scale(1.08) rotate(3deg); }
+    65% { transform: translateX(6px) scale(1.03); }
+  }
+  .animate-action-punch {
+    animation: action-punch 1.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes action-victory {
+    0%, 100% { transform: translateY(0) scale(1); }
+    25% { transform: translateY(-16px) scale(1.1) rotate(-5deg); }
+    50% { transform: translateY(-22px) scale(1.15) rotate(5deg); }
+    75% { transform: translateY(-8px) scale(1.05); }
+  }
+  .animate-action-victory {
+    animation: action-victory 1.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes action-jump {
+    0%, 100% { transform: translateY(0) scale(1, 1); }
+    15% { transform: translateY(4px) scale(1.08, 0.9); }
+    45% { transform: translateY(-24px) scale(0.94, 1.1); }
+    70% { transform: translateY(-6px) scale(1.02, 0.98); }
+    85% { transform: translateY(2px) scale(1.04, 0.94); }
+  }
+  .animate-action-jump {
+    animation: action-jump 1.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes action-look {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px) rotate(-4deg); }
+    50% { transform: translateX(0); }
+    75% { transform: translateX(10px) rotate(4deg); }
+  }
+  .animate-action-look {
+    animation: action-look 2s ease-in-out;
+  }
+
+  @keyframes action-stretch {
+    0%, 100% { transform: scale(1, 1) translateY(0); }
+    35% { transform: scale(0.92, 1.14) translateY(-8px); }
+    70% { transform: scale(1.06, 0.96) translateY(-2px); }
+  }
+  .animate-action-stretch {
+    animation: action-stretch 1.9s ease-in-out;
+  }
+
+  @keyframes action-happy {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    20% { transform: translateY(-12px) rotate(-7deg) scale(1.06); }
+    40% { transform: translateY(0) rotate(0deg); }
+    60% { transform: translateY(-12px) rotate(7deg) scale(1.06); }
+    80% { transform: translateY(-4px) rotate(-2deg); }
+  }
+  .animate-action-happy {
+    animation: action-happy 1.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes action-special {
+    0%, 100% { transform: scale(1) rotate(0deg); filter: brightness(1); }
+    35% { transform: scale(1.18) rotate(-6deg); filter: brightness(1.3) drop-shadow(0 0 14px rgba(212, 168, 83, 0.8)); }
+    70% { transform: scale(1.12) rotate(6deg); filter: brightness(1.2) drop-shadow(0 0 8px rgba(212, 168, 83, 0.5)); }
+  }
+  .animate-action-special {
+    animation: action-special 2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Skeleton Loading Pulse */
+  @keyframes skeleton-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+  .skeleton-pulse {
+    animation: skeleton-pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+/* Next.js dev indicators and shadow DOM portal hide */
+nextjs-portal,
+[data-nextjs-toast],
+[data-next-badge],
+div[data-nextjs-dialog-overlay] {
+  display: none !important;
+}
+
+/* Accessibility: respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-action-wave,
+  .animate-action-punch,
+  .animate-action-victory,
+  .animate-action-jump,
+  .animate-action-look,
+  .animate-action-stretch,
+  .animate-action-happy,
+  .animate-action-special,
+  .animate-idle-breathe {
+    animation: reduced-motion-pulse 2s ease-in-out infinite !important;
+    transform: none !important;
+  }
+  @keyframes reduced-motion-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.82; }
+  }
+}
+
+
