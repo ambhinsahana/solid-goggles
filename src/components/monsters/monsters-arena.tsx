@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import Image from 'next/image'
 import { HabitMonster, MysteryBox } from '@/lib/types'
-import { attackHabitMonster, openMysteryBox, createHabitMonster } from '@/app/dashboard/actions'
+import { attackHabitMonster, relapseHabitMonster, openMysteryBox, createHabitMonster } from '@/app/dashboard/actions'
 import { 
   Skull, 
   Swords, 
@@ -14,7 +14,8 @@ import {
   Zap, 
   AlertTriangle,
   Trophy,
-  Shield
+  Shield,
+  RotateCcw
 } from 'lucide-react'
 import { gameAudio } from '@/lib/audio/game-audio'
 
@@ -125,6 +126,39 @@ export function MonstersArena({ initialMonsters, initialBoxes, isLoggedIn }: Mon
             type: 'info',
           })
         }
+      }
+    })
+  }
+
+  // Record Relapse handler (Setback: heals the monster by 30 HP)
+  const handleRelapse = (monster: HabitMonster) => {
+    gameAudio.playTap()
+    setStrikingId(monster.id)
+    setFeedback(null)
+
+    const initialMonsters = monsters
+    const newHp = Math.min(monster.max_hp, monster.current_hp + 30)
+
+    setMonsters((prev) =>
+      prev.map((m) =>
+        m.id === monster.id
+          ? { ...m, current_hp: newHp, status: 'active', defeated_at: null }
+          : m
+      )
+    )
+
+    startTransition(async () => {
+      const res = await relapseHabitMonster(monster.id, 30)
+      setStrikingId(null)
+
+      if (res.error && res.error !== 'SUPABASE_NOT_CONFIGURED') {
+        setMonsters(initialMonsters)
+        setFeedback({ message: res.error, type: 'error' })
+      } else {
+        setFeedback({
+          message: `Relapse recorded for ${monster.name}. The monster regenerated +30 HP. Stay disciplined and conquer it!`,
+          type: 'error',
+        })
       }
     })
   }
@@ -407,14 +441,27 @@ export function MonstersArena({ initialMonsters, initialBoxes, isLoggedIn }: Mon
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => handleAttack(monster)}
-                      disabled={isPending}
-                      className="btn-clash-rose flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-gradient-to-b from-rose-500 to-rose-700 text-white font-black text-sm uppercase tracking-wider transition-all shadow-[0_4px_0_#9f1239] border border-rose-400 touch-bounce"
-                    >
-                      <Swords className="w-5 h-5" />
-                      {isStriking ? 'Striking...' : 'Resist (-30 HP)'}
-                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => handleAttack(monster)}
+                        disabled={isPending}
+                        className="btn-clash-rose flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-gradient-to-b from-rose-500 to-rose-700 text-white font-black text-xs uppercase tracking-wider transition-all shadow-[0_4px_0_#9f1239] border border-rose-400 touch-bounce"
+                        title="Resisted the bad habit today: deals 30 discipline damage"
+                      >
+                        <Swords className="w-4 h-4" />
+                        <span>{isStriking ? '...' : 'Resist (-30)'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleRelapse(monster)}
+                        disabled={isPending}
+                        className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-gradient-to-b from-amber-600 to-amber-800 text-white font-black text-xs uppercase tracking-wider transition-all shadow-[0_4px_0_#78350f] border border-amber-500 touch-bounce hover:from-amber-500 hover:to-amber-700"
+                        title="Gave in to the bad habit: monster heals +30 HP"
+                      >
+                        <RotateCcw className="w-4 h-4 text-amber-200" />
+                        <span>{isStriking ? '...' : 'Relapse (+30)'}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               )

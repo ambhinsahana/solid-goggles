@@ -54,6 +54,7 @@ export default async function LoginPage({ searchParams }: Props) {
               id="display_name" 
               name="display_name" 
               type="text" 
+              defaultValue={(resolvedSearchParams.name as string) || ''}
               className="px-4 py-3 bg-[#FDF9F1] border-2 border-[#E5D3B3] rounded-xl focus:outline-none focus:border-[#D97757] focus:ring-2 focus:ring-[#D97757]/20 transition-all text-[#3D2C1E] placeholder-[#8A7A6A]/50 font-medium shadow-inner"
               placeholder="Your adventurer name"
             />

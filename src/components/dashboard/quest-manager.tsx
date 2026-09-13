@@ -60,7 +60,7 @@ export function QuestManager({
     display_name: 'Hero',
     nexus_level: 1,
     lifetime_xp: 0,
-    nexus_coins: 100,
+    nexus_coins: 0,
     consistency_tier: 'Casual',
     active_creature_id: 1,
   })

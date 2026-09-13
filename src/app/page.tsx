@@ -74,7 +74,7 @@ export default function Home() {
             { label: "XP PROGRESS", sub: "100*(N-1)^1.5", icon: Sparkles, color: "text-[#d4a853] bg-[#d4a853]/10 border-[#d4a853]/30" },
             { label: "COMPANIONS", sub: "Emberfox & Aqualynx", icon: Flame, color: "text-[#e25c4a] bg-[#e25c4a]/10 border-[#e25c4a]/30" },
             { label: "HABIT BOSSES", sub: "Slain for Bounties", icon: Zap, color: "text-[#9b59b6] bg-[#9b59b6]/10 border-[#9b59b6]/30" },
-            { label: "ARMORY SHOP", sub: "Titles & Skins", icon: Trophy, color: "text-[#f39c12] bg-[#f39c12]/10 border-[#f39c12]/30" },
+            { label: "ARMORY SHOP", sub: "Titles & Sigils", icon: Trophy, color: "text-[#f39c12] bg-[#f39c12]/10 border-[#f39c12]/30" },
             { label: "HALL OF FAME", sub: "Global Ranks", icon: Crown, color: "text-[#2ecc71] bg-[#2ecc71]/10 border-[#2ecc71]/30" },
           ].map((step, i) => (
             <div

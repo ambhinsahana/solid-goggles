@@ -6,8 +6,70 @@ import { calculateQuestRewards, QuestDifficulty, QuestPath } from '@/lib/progres
 import { calculateLevelFromXP } from '@/lib/progression/levels'
 import { evaluateStreak } from '@/lib/progression/streaks'
 import { getCharacterProgression } from '@/lib/characters/character-progression'
+import { SYSTEM_SHOP_ITEMS } from '@/lib/progression/shop'
+import { checkNewAchievements, PlayerStats } from '@/lib/progression/achievements'
+import { Achievement } from '@/lib/types'
 import * as fs from 'fs'
 import * as path from 'path'
+
+/**
+ * Authoritative Achievement Evaluation & Persistence
+ */
+async function evaluateAndAwardAchievements(
+  supabase: any,
+  userId: string,
+  stats: PlayerStats,
+  currentXp: number,
+  currentCoins: number
+): Promise<{ newAchievements: Achievement[]; bonusXp: number; bonusCoins: number }> {
+  try {
+    const { data: userAchs } = await supabase
+      .from('user_achievements')
+      .select('achievement_id')
+      .eq('user_id', userId)
+
+    const alreadyUnlocked = new Set<string>(userAchs?.map((a: any) => a.achievement_id) || [])
+    const newUnlocks = checkNewAchievements(stats, alreadyUnlocked)
+
+    if (newUnlocks.length === 0) {
+      return { newAchievements: [], bonusXp: 0, bonusCoins: 0 }
+    }
+
+    let bonusXp = 0
+    let bonusCoins = 0
+
+    for (const ach of newUnlocks) {
+      await supabase
+        .from('user_achievements')
+        .insert({
+          user_id: userId,
+          achievement_id: ach.id,
+        })
+      bonusXp += ach.xp_reward
+      bonusCoins += ach.gold_reward
+    }
+
+    if (bonusXp > 0 || bonusCoins > 0) {
+      const updatedXp = currentXp + bonusXp
+      const updatedCoins = currentCoins + bonusCoins
+      const { level: updatedLevel } = calculateLevelFromXP(updatedXp)
+
+      await supabase
+        .from('profiles')
+        .update({
+          lifetime_xp: updatedXp,
+          nexus_coins: updatedCoins,
+          nexus_level: updatedLevel,
+        })
+        .eq('id', userId)
+    }
+
+    return { newAchievements: newUnlocks, bonusXp, bonusCoins }
+  } catch (err) {
+    console.error('Failed to evaluate achievements:', err)
+    return { newAchievements: [], bonusXp: 0, bonusCoins: 0 }
+  }
+}
 
 function isSupabaseConfigured(): boolean {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -326,7 +388,41 @@ export async function completeQuest(questId: string) {
       path_progressed: quest.path,
     })
 
+    // 9. Evaluate Achievements authoritatively
+    let unlockedAchievements: Achievement[] = []
+    try {
+      const { count: totalCompletions } = await supabase
+        .from('quest_completions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+
+      const { count: totalMonstersSlain } = await supabase
+        .from('bad_habit_monsters')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('status', 'defeated')
+
+      const stats: PlayerStats = {
+        questsCompletedCount: totalCompletions || 1,
+        currentStreak: evaluated.newCurrentStreak,
+        level: newLevel,
+        monstersSlainCount: totalMonstersSlain || 0,
+      }
+
+      const achResult = await evaluateAndAwardAchievements(
+        supabase,
+        user.id,
+        stats,
+        newXP,
+        newCoins
+      )
+      unlockedAchievements = achResult.newAchievements
+    } catch {
+      // Non-blocking
+    }
+
     revalidatePath('/dashboard')
+    revalidatePath('/character')
     return {
       success: true,
       rewards,
@@ -339,6 +435,7 @@ export async function completeQuest(questId: string) {
       evolved,
       evolutionStage: newProgression.evolutionStage,
       characterName: newProgression.character.name,
+      unlockedAchievements,
     }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Quest completion failed'
@@ -384,9 +481,9 @@ export async function deleteQuest(questId: string) {
 }
 
 /**
- * Buys an item from the Armory/Shop with Gold
+ * Buys an item from the Armory/Shop with Gold (Authoritative Server Pricing)
  */
-export async function buyShopItem(itemId: string, itemPrice: number) {
+export async function buyShopItem(itemId: string, itemPrice?: number) {
   if (!itemId) return { error: 'Item ID is required' }
 
   if (!isSupabaseConfigured()) {
@@ -398,12 +495,30 @@ export async function buyShopItem(itemId: string, itemPrice: number) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
 
+    // Authoritative server-side price resolution - never trust client price
+    let resolvedPrice = 0
+    const systemItem = SYSTEM_SHOP_ITEMS.find((i) => i.id === itemId)
+    if (systemItem) {
+      resolvedPrice = systemItem.price
+    } else {
+      const { data: dbItem } = await supabase
+        .from('shop_items')
+        .select('price')
+        .eq('id', itemId)
+        .single()
+      if (dbItem?.price) {
+        resolvedPrice = dbItem.price
+      } else {
+        return { error: 'Item not found in armory catalog.' }
+      }
+    }
+
     // Fetch user profile
     const { data: profile } = await supabase.from('profiles').select('nexus_coins').eq('id', user.id).single()
     const coins = profile?.nexus_coins || 0
 
-    if (coins < itemPrice) {
-      return { error: `Insufficient Gold. You have ${coins} G, but this item costs ${itemPrice} G.` }
+    if (coins < resolvedPrice) {
+      return { error: `Insufficient Gold. You have ${coins} G, but this item costs ${resolvedPrice} G.` }
     }
 
     // Check if already in inventory
@@ -413,7 +528,7 @@ export async function buyShopItem(itemId: string, itemPrice: number) {
     }
 
     // Deduct gold
-    await supabase.from('profiles').update({ nexus_coins: coins - itemPrice }).eq('id', user.id)
+    await supabase.from('profiles').update({ nexus_coins: coins - resolvedPrice }).eq('id', user.id)
 
     // Add to inventory
     await supabase.from('inventory').insert({
@@ -425,7 +540,7 @@ export async function buyShopItem(itemId: string, itemPrice: number) {
     revalidatePath('/shop')
     revalidatePath('/character')
     revalidatePath('/dashboard')
-    return { success: true, remainingCoins: coins - itemPrice }
+    return { success: true, remainingCoins: coins - resolvedPrice }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Purchase failed'
     return { error: message }
@@ -479,7 +594,7 @@ export async function attackHabitMonster(monsterId: string, damage: number = 30)
       defeated_at: isDefeated ? new Date().toISOString() : null,
     }).eq('id', monsterId).eq('user_id', user.id)
 
-    // If defeated, award a Mystery Box
+    // If defeated, award a Mystery Box and evaluate monster slayer achievements
     let mysteryBoxAwarded = false
     if (isDefeated) {
       await supabase.from('mystery_boxes').insert({
@@ -490,13 +605,94 @@ export async function attackHabitMonster(monsterId: string, damage: number = 30)
         reward_amount: 150,
       })
       mysteryBoxAwarded = true
+
+      try {
+        const { count: totalCompletions } = await supabase
+          .from('quest_completions')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+
+        const { count: totalMonstersSlain } = await supabase
+          .from('bad_habit_monsters')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('status', 'defeated')
+
+        const { data: currentProfile } = await supabase
+          .from('profiles')
+          .select('lifetime_xp, nexus_coins, nexus_level')
+          .eq('id', user.id)
+          .single()
+
+        const stats: PlayerStats = {
+          questsCompletedCount: totalCompletions || 0,
+          currentStreak: 0,
+          level: currentProfile?.nexus_level || 1,
+          monstersSlainCount: totalMonstersSlain || 1,
+        }
+
+        await evaluateAndAwardAchievements(
+          supabase,
+          user.id,
+          stats,
+          currentProfile?.lifetime_xp || 0,
+          currentProfile?.nexus_coins || 0
+        )
+      } catch {
+        // Non-blocking
+      }
     }
 
     revalidatePath('/monsters')
     revalidatePath('/dashboard')
+    revalidatePath('/character')
     return { success: true, newHp, isDefeated, mysteryBoxAwarded }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Monster strike failed'
+    return { error: message }
+  }
+}
+
+/**
+ * Records a habit relapse: heals the monster by 30 HP (up to max_hp)
+ * and reactivates it if it was previously defeated.
+ */
+export async function relapseHabitMonster(monsterId: string, healAmount: number = 30) {
+  if (!monsterId) return { error: 'Monster ID is required' }
+
+  if (!isSupabaseConfigured()) return { error: 'SUPABASE_NOT_CONFIGURED' }
+
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Unauthorized' }
+
+    const { data: monster } = await supabase
+      .from('bad_habit_monsters')
+      .select('*')
+      .eq('id', monsterId)
+      .eq('user_id', user.id)
+      .single()
+
+    if (!monster) return { error: 'Monster not found' }
+
+    const newHp = Math.min(monster.max_hp, monster.current_hp + healAmount)
+
+    await supabase
+      .from('bad_habit_monsters')
+      .update({
+        current_hp: newHp,
+        status: 'active',
+        defeated_at: null,
+      })
+      .eq('id', monsterId)
+      .eq('user_id', user.id)
+
+    revalidatePath('/monsters')
+    revalidatePath('/dashboard')
+    return { success: true, newHp, status: 'active' }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to record relapse'
     return { error: message }
   }
 }
